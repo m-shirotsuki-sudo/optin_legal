@@ -1,11 +1,14 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SalesClient } from "./SalesClient";
 import type { Company, Plan } from "@/types/contract";
 
 export const dynamic = "force-dynamic";
 
 export default async function SalesPage() {
-  const supabase = createSupabaseServerClient();
+  // 認証未導入のため、サーバー側fetchは service_role を直接使ってRLSを回避。
+  // service_role キーはサーバーコンポーネント内でのみ参照され、クライアントには流れない。
+  // 認証導入後は createSupabaseServerClient (anon + cookie) に戻し、RLSで保護する。
+  const supabase = createSupabaseAdminClient();
 
   const { data: companies, error: ce } = await supabase
     .from("companies")

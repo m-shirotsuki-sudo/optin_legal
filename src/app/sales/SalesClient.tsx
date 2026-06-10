@@ -77,7 +77,10 @@ export function SalesClient({ companies, plans }: Props) {
         <div style={{ fontSize: 12, letterSpacing: ".14em", color: "var(--accent)", fontWeight: 700 }}>
           OPT-IN · 契約書作成ツール
         </div>
-        <h1 style={{ fontSize: 18, margin: "6px 0 16px" }}>セールス画面</h1>
+        <h1 style={{ fontSize: 18, margin: "6px 0 8px" }}>セールス画面</h1>
+        <div style={{ background: "#fff4e5", border: "1px solid #f0c987", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#8a5a00", marginBottom: 14 }}>
+          ⚠️ 認証未導入。URLを知っている人は誰でも操作できます。本番運用前にログインを実装してください。
+        </div>
 
         <div style={groupStyle}>
           <div style={groupLabelStyle}>会社／サービスを選ぶ</div>

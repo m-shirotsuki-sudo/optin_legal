@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Company, Plan } from "@/types/contract";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const supabase = createSupabaseServerClient();
+  // 認証未導入のため、サーバー側fetchは service_role を直接使う。詳細は /sales/page.tsx を参照。
+  const supabase = createSupabaseAdminClient();
   const [{ data: companies }, { data: plans }] = await Promise.all([
     supabase.from("companies").select("id, code, name, seller_info, created_at").order("name"),
     supabase
@@ -19,6 +20,9 @@ export default async function AdminPage() {
 
   return (
     <main style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px 80px" }}>
+      <div style={{ background: "#fff4e5", border: "1px solid #f0c987", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#8a5a00", marginBottom: 18 }}>
+        ⚠️ 認証未導入。URLを知っている人は誰でも操作できます。本番運用前にログインを実装してください。
+      </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
           <p style={{ fontSize: 12, letterSpacing: ".14em", color: "var(--accent)", fontWeight: 700 }}>
