@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #1a1d24;
+  --ink-soft: #4a5160;
+  --line: #d8dce4;
+  --line-soft: #eaedf2;
+  --bg: #f2f4f8;
+  --panel: #ffffff;
+  --accent: #1f5fa8;
+  --accent-soft: #eaf1f9;
+  --field: #fffbe8;
+  --field-line: #d9c97a;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========= 契約書プレビュー / 印刷用スタイル ========= */
+.contract-page {
+  background: #fff;
+  width: 210mm;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20mm 18mm;
+  box-shadow: 0 2px 18px rgba(20, 30, 50, 0.1);
+  border: 1px solid var(--line);
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+  color: #14171d;
+  font-size: 9.8pt;
+  line-height: 1.72;
+}
+.contract-page .notice-box {
+  border: 1.5px solid #ff0000;
+  color: #ff0000;
+  font-size: 9.4pt;
+  line-height: 1.7;
+  padding: 8px 12px;
+  margin: 0 0 18px;
+  text-align: justify;
+}
+.contract-page .doc-title {
+  text-align: center;
+  font-size: 15pt;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  margin: 0 0 20px;
+}
+.contract-page .article {
+  margin-bottom: 12px;
+}
+.contract-page .svc-table,
+.contract-page .pay-table,
+.contract-page .article p,
+.contract-page .ind,
+.contract-page .ind2,
+.contract-page .env-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.contract-page .article-head {
+  break-after: avoid;
+  page-break-after: avoid;
+  font-weight: 700;
+  font-size: 10.4pt;
+  margin-bottom: 3px;
+}
+.contract-page .article-head.red {
+  color: #ff0000;
+}
+.contract-page .article p {
+  margin: 0 0 4px;
+  text-align: justify;
+}
+.contract-page .ind {
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+}
+.contract-page .ind2 {
+  padding-left: 2.7em;
+  text-indent: -1.2em;
+}
+.contract-page .red {
+  color: #ff0000;
+}
+.contract-page .svc-table,
+.contract-page .pay-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 9pt;
+  line-height: 1.55;
+}
+.contract-page .svc-table th,
+.contract-page .svc-table td,
+.contract-page .pay-table th,
+.contract-page .pay-table td {
+  border: 1px solid #555;
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.contract-page .svc-table th {
+  background: #f0f0f0;
+  width: 38%;
+  font-weight: 700;
+}
+.contract-page .pay-table td:first-child {
+  width: 40%;
+}
+.contract-page .env-block {
+  margin: 4px 0 4px 1.5em;
+  font-size: 9.2pt;
+  line-height: 1.5;
+}
+.contract-page .var {
+  background: var(--field);
+  border-bottom: 1px solid var(--field-line);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.contract-page .var.empty::after {
+  content: "（未入力）";
+  color: #b9870f;
+  font-size: 0.85em;
+}
+.contract-page .var.empty {
+  color: transparent;
+}
+.contract-page .sign-block {
+  margin-top: 16px;
+  line-height: 1.4;
+}
+.contract-page .sign-block .party {
+  font-weight: 700;
+  margin: 9px 0 2px;
+}
+.contract-page .sign-line {
+  margin: 1px 0;
+}
+.contract-page .seal-row {
+  text-align: right;
+  margin: 0 0 1px;
+  color: #888;
+}
+.contract-page .name-seal {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.contract-page .name-seal .seal {
+  color: #888;
+  padding-right: 2em;
+}
+
+/* 印刷時：黄色背景を消す & 未入力欄は完全に空白に */
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .contract-page {
+    box-shadow: none;
+    border: none;
+    margin: 0;
+    width: auto;
+    padding: 14mm 16mm;
+  }
+  .contract-page .var {
+    background: transparent !important;
+    border-bottom: none !important;
+  }
+  .contract-page .var.empty::after {
+    content: "";
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
