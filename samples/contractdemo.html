@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>契約書作成ツール（実動デモ）— Men's Rise VIPプラン</title>
+<style>
+  :root {
+    --ink: #1a1d24; --ink-soft: #4a5160; --line: #d8dce4; --line-soft: #eaedf2;
+    --bg: #f2f4f8; --panel: #ffffff; --accent: #1f5fa8; --accent-soft: #eaf1f9;
+    --field: #fffbe8; --field-line: #d9c97a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .app { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+  .panel-form { background: var(--panel); border-right: 1px solid var(--line); padding: 24px 22px 60px; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+  .panel-preview { padding: 28px 28px 80px; overflow-y: auto; height: 100vh; }
+  .brand { font-size: 12px; letter-spacing: .14em; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+  .panel-form h1 { font-size: 18px; margin: 6px 0 2px; }
+  .sub { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 20px; }
+  .group { margin-bottom: 18px; }
+  .group-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--ink-soft); text-transform: uppercase; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--line-soft); }
+  label.field { display: block; margin-bottom: 11px; }
+  label.field .lab { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; }
+  label.field .hint { font-weight: 400; color: #9aa1ad; font-size: 11px; }
+  input[type="text"], input[type="tel"], input[type="date"], input[type="number"], select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; font-family: inherit; color: var(--ink); background: #fff; transition: border-color .15s, box-shadow .15s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  textarea { resize: vertical; min-height: 54px; }
+  .fixed-note { background: var(--accent-soft); border: 1px solid #cfe0f1; border-radius: 8px; padding: 10px 12px; font-size: 11.5px; color: #2a4a6b; margin-bottom: 20px; }
+  .fixed-note b { color: var(--accent); }
+  .actions { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--panel) 22%); padding-top: 20px; margin-top: 8px; }
+  .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s, transform .05s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1a528f; }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-note { font-size: 11px; color: var(--ink-soft); text-align: center; margin-top: 8px; }
+  .preview-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .preview-bar .tag { font-size: 11px; background: #e2e7ef; color: var(--ink-soft); padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .preview-bar .tag.live { background: #e3f3e8; color: #1f7a42; }
+  .page { background: #fff; width: 210mm; max-width: 100%; margin: 0 auto; padding: 20mm 18mm; box-shadow: 0 2px 18px rgba(20,30,50,.10); border: 1px solid var(--line); font-family: "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif; color: #14171d; font-size: 9.8pt; line-height: 1.72; }
+  .notice-box { border: 1.5px solid #FF0000; color: #FF0000; font-size: 9.4pt; line-height: 1.7; padding: 8px 12px; margin: 0 0 18px; text-align: justify; }
+  .doc-title { text-align: center; font-size: 15pt; font-weight: 700; letter-spacing: .28em; margin: 0 0 20px; }
+  .article { margin-bottom: 12px; }
+  /* ===== 改ページ制御（表・項単位で割れない） ===== */
+  .svc-table, .pay-table { break-inside: avoid; page-break-inside: avoid; }
+  .article p, .ind, .ind2, .env-block { break-inside: avoid; page-break-inside: avoid; }
+  .article-head { break-after: avoid; page-break-after: avoid; }
+  .article-head { font-weight: 700; font-size: 10.4pt; margin-bottom: 3px; }
+  .article-head.red { color: #FF0000; }
+  .article p { margin: 0 0 4px; text-align: justify; }
+  .ind { padding-left: 1.5em; text-indent: -1.5em; }
+  .ind2 { padding-left: 2.7em; text-indent: -1.2em; }
+  .red { color: #FF0000; }
+  .svc-table, .pay-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; line-height: 1.55; }
+  .svc-table th, .svc-table td, .pay-table th, .pay-table td { border: 1px solid #555; padding: 5px 8px; text-align: left; vertical-align: top; }
+  .svc-table th { background: #f0f0f0; width: 38%; font-weight: 700; }
+  .pay-table td:first-child { width: 40%; }
+  .env-block { margin: 4px 0 4px 1.5em; font-size: 9.2pt; line-height: 1.5; }
+  .var { background: var(--field); border-bottom: 1px solid var(--field-line); padding: 0 3px; border-radius: 2px; }
+  .var.empty::after { content: "（未入力）"; color: #b9870f; font-size: .85em; }
+  .var.empty { color: transparent; }
+  .sign-block { margin-top: 16px; line-height: 1.4; }
+  .sign-block .party { font-weight: 700; margin: 9px 0 2px; }
+  .sign-line { margin: 1px 0; }
+  .seal-row { text-align: right; margin: 0 0 1px; color: #888; }
+  .name-seal { display: flex; justify-content: space-between; align-items: baseline; }
+  .name-seal .seal { color: #888; padding-right: 2em; }
+  .pay-dim { opacity: .4; }
+  .pay-flag { display: inline-block; font-size: 8.5pt; font-family: -apple-system, sans-serif; background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+  @media print {
+    body { background: #fff; }
+    .panel-form, .preview-bar { display: none !important; }
+    .app { display: block; }
+    .panel-preview { padding: 0; height: auto; overflow: visible; }
+    .page { box-shadow: none; border: none; margin: 0; width: auto; padding: 14mm 16mm; }
+    .var { background: transparent !important; border-bottom: none !important; }
+    .var.empty::after { content: ""; }
+    .pay-flag { display: none !important; }
+    .pay-dim { display: none !important; }
+    @page { size: A4; margin: 0; }
+  }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .panel-form { height: auto; position: relative; }
+    .panel-preview { height: auto; }
+    .page { padding: 12mm 9mm; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="panel-form">
+    <div class="brand">OPT-IN · 契約書作成ツール</div>
+    <h1>Men's Rise 利用契約書</h1>
+    <p class="sub">VIPプラン / 20260519版 — 実動デモ</p>
+    <div class="fixed-note">条文・金額・口座・サービス内容・<b>赤字のクーリングオフ条項</b>はすべて<b>固定</b>です。入力するのは<b>黄色く光る可変箇所だけ</b>。本文は一文字も触れません。</div>
+
+    <div class="group">
+      <div class="group-label">案件情報</div>
+      <label class="field"><span class="lab">締結年月日</span><input type="date" id="f_date" oninput="render()"></label>
+    </div>
+
+    <div class="group">
+      <div class="group-label">第4条 支払条件 <span class="hint" style="font-weight:400">（該当欄のみ入力・併用可）</span></div>
+      <p style="font-size:11px;color:#9aa1ad;margin:-2px 0 10px;line-height:1.5">銀行振込のみ／分割のみ／両方併用、いずれもOK。使う欄だけ埋めてください。空欄は契約書でも空欄のまま出ます。</p>
+      <label class="field"><span class="lab">デビットカード 支払回数 <span class="hint">（回）</span></span><input type="number" id="f_debit_times" min="1" placeholder="例：1" oninput="render()"></label>
+      <label class="field"><span class="lab">ショッピングクレジット 支払回数 <span class="hint">（回）</span></span><input type="number" id="f_shop_times" min="1" placeholder="例：12" oninput="render()"></label>
+      <label class="field"><span class="lab">クレジット会社名 <span class="hint">（Mosh / CBS / Lifety 等・手入力）</span></span><input type="text" id="f_credit_co" placeholder="例：CBS" oninput="render()"></label>
+      <label class="field"><span class="lab">引落 年月日 <span class="hint">（2026年〇月〇日）</span></span><input type="text" id="f_debit_date" placeholder="例：6月10日" oninput="render()"></label>
+      <label class="field"><span class="lab">銀行振込額（円）</span><input type="text" id="f_bank_amt" placeholder="例：660,000" oninput="render()"></label>
+      <label class="field"><span class="lab">初回額（円・税込）</span><input type="text" id="f_first" placeholder="例：110,000" oninput="render()"></label>
+      <label class="field"><span class="lab">翌月額（円・税込）</span><input type="text" id="f_next" placeholder="例：110,000" oninput="render()"></label>
+    </div>
+
+    <div class="group">
+      <div class="group-label">甲（お客様）情報</div>
+      <label class="field"><span class="lab">氏名</span><input type="text" id="f_name" placeholder="山田 太郎" oninput="render()"></label>
+      <label class="field"><span class="lab">住所</span><textarea id="f_addr" placeholder="東京都〇〇区〇〇 1-2-3" oninput="render()"></textarea></label>
+      <label class="field"><span class="lab">電話番号 <span class="hint">（数字とハイフン）</span></span><input type="tel" id="f_tel" placeholder="090-1234-5678" oninput="render()"></label>
+    </div>
+
+    <div class="group">
+      <div class="group-label">乙（自社）情報</div>
+      <label class="field"><span class="lab">契約担当者氏名 <span class="hint">（セールス担当）</span></span><input type="text" id="f_staff" placeholder="鈴木 一郎" oninput="render()"></label>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="window.print()">PDFを生成する（印刷 → PDF保存）</button>
+      <p class="btn-note">※本番ではこのPDFを自動でクラウドサインへ送信</p>
+    </div>
+  </div>
+
+  <div class="panel-preview">
+    <div class="preview-bar">
+      <span class="tag live">● リアルタイムプレビュー</span>
+      <span class="tag">A4 / 縦</span>
+      <span class="tag">黄色＝可変箇所</span>
+      <span class="tag" style="background:#fdeaea;color:#c0392b;">赤字＝原本ママ保持</span>
+    </div>
+    <div class="page" id="page"></div>
+  </div>
+</div>
+
+<script>
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function v(val){ const safe = esc(val); if(!val || !val.trim()) return '<span class="var empty"></span>'; return '<span class="var">'+safe+'</span>'; }
+function fmtDate(iso){ if(!iso) return ""; const [y,m,d]=iso.split("-"); return `${y}年${parseInt(m)}月${parseInt(d)}日`; }
+
+function render(){
+  const name=document.getElementById('f_name').value;
+  const addr=document.getElementById('f_addr').value;
+  const tel=document.getElementById('f_tel').value;
+  const staff=document.getElementById('f_staff').value;
+  const date=document.getElementById('f_date').value;
+  const debitTimes=document.getElementById('f_debit_times').value;
+  const shopTimes=document.getElementById('f_shop_times').value;
+  const creditCo=document.getElementById('f_credit_co').value;
+  const debitDate=document.getElementById('f_debit_date').value;
+  const bankAmt=document.getElementById('f_bank_amt').value;
+  const first=document.getElementById('f_first').value;
+  const next=document.getElementById('f_next').value;
+
+  const html = `
+  <div class="notice-box">本書は、特定商取引法に基づき交付される、お客様（甲）と株式会社Men'sRise（乙）の契約条件を定める重要な書類となりますので、本契約全てのページに記載されている内容を十分にお読みください。</div>
+
+  <div class="doc-title">オンラインコミュニティ利用契約書</div>
+
+  <div class="article">
+    <div class="article-head">第１条(契約の目的)</div>
+    <p>${v(name)}様（以下、「甲」という）は、株式会社Men'sRise（以下、「乙」という）が提供する、男性の外見・生活習慣・マインドセット等の向上を目的としたオンラインコミュニティサービス「Men's Rise（メンズライズ）」（以下「本サービス」という）に参加し、乙は甲に対し、本サービスに関する各種支援、情報提供および環境の提供を行うことを目的として、本契約を締結する。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第２条(本業務の内容)</div>
+    <p class="ind">１　コース名：Men's Rise（VIPプラン）</p>
+    <p class="ind">２　本業務には以下のサービス（以下「本サービス」という。）が含まれる。</p>
+    <p style="font-size:9pt;color:#555;margin-top:4px;">＜本サービスの詳細＞</p>
+    <table class="svc-table">
+      <tr><th>(1) 専門講師によるオンラインカウンセリング</th><td>本サービス提供開始から6ヶ月間は、乙または乙が指定する講師によるオンライン形式のカウンセリングを月に1回30分受けることができる。</td></tr>
+      <tr><th>(2) 講師陣によるチャットサポート</th><td>甲は、乙が指定するコミュニケーションツールを通じて、本サービスに関連する範囲内で質問・相談を行うことができる。ただし、対応時間、回答内容および即時性については保証されないものとする。</td></tr>
+      <tr><th>(3) 講義・情報コンテンツの提供</th><td>外見改善、生活習慣、マインド形成等に関するオンライン講義を週1回。振り返り講義を週１回。最新情報の提供を動画、テキストその他、乙の裁量により提供する。</td></tr>
+      <tr><th>(4) 動画コンテンツ</th><td>乙が作成した「男磨きルーティン」を解説したコンテンツ（動画+各種テンプレート）の権限の付与</td></tr>
+      <tr><th>(5) 月1回のオフ会</th><td>甲は乙の開催する月１回オフ会の参加に参加する権限の付与。</td></tr>
+      <tr><th>(6) 商品およびサービスに関する情報提供</th><td>乙は、甲に対し、乙または第三者が提供する商品・サービスに関する情報を提供することがあるが、当該商品の購入は甲の任意とし、購入を強制するものではない。</td></tr>
+      <tr><th>(7) 福利厚生および優待情報の提供</th><td>乙は、甲に対し、日用品等の割引購入や提携店舗での優待等の情報を提供する場合がある。ただし、地域・数量・期間等に制限があることを甲はあらかじめ了承する。</td></tr>
+    </table>
+    <p class="ind">３　受講者は自己負担、自己責任において、当社サービスの利用に関して必要な通信機器、通信回線を本コース受講前に準備することとする。推奨する使用環境は以下である。</p>
+    <div class="env-block">
+      インターネット接続：10Mbps以上<br>
+      使用ソフト：ZOOM<br>
+      サポートOS<br>
+      　Mac：10.7以降搭載のMac OS X<br>
+      　Windows：7〜10<br>
+      ブラウザ<br>
+      　Mac：Safari5~、Firefox、Chrome<br>
+      　Windows：IE7~、Safari5~、Firefox、Chrome
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第３条（本業務の遂行方法と期間）</div>
+    <p>本サービスの提供期間は、提供期間は契約締結日より6ヶ月間とする。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第４条(受講料と支払時期)</div>
+    <p class="ind">１　甲は、乙に対し、本業務の対価として660,000円（税込価格660,000円）を支払うものとする。本業務1か月あたりの受講料は100,000円（税込価格110,000円）とする。</p>
+    <p class="ind">２　甲は、乙に対し、本契約締結後3日後以内に以下いずれかの方法で入会金を支払うものとする。</p>
+    <p class="ind">３　銀行口座振り込みの場合：以下の銀行口座に振り込んで支払うものとする。但し、振込手数料は甲の負担とする。</p>
+    <div class="env-block">銀行名　：三井住友銀行<br>支店名　：トランクNORTH支店(403)<br>口座番号：普通　０５７８９９２<br>名　義　：株式会社Men'sRise</div>
+    <table class="pay-table"><tr>
+      <td>信販会社（クレジット会社）を利用する場合の支払方法等</td>
+      <td>支払方法<br>　デビットカード　　　支払回数（　${v(debitTimes)}　）回<br>　ショッピングクレジット　支払回数（　${v(shopTimes)}　）回<br>支払時期<br>　クレジット会社名 ：${v(creditCo)}　2026年　${v(debitDate)}　引落<br>支払額<br>　銀行振込　${v(bankAmt)}　円<br>　初回 (円)　${v(first)}　円（税込）<br>　翌月（円）　${v(next)}　円（税込）<br>・割賦販売法に基づく抗弁権の接続が適用されます。詳しくは各クレジット会社の契約書をご覧下さい。<br>・前受金保全措置は、行っていません。</td>
+    </tr></table>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第５条(知的財産の帰属)</div>
+    <p>乙が本業務の遂行にあたり作成して甲に提供する書面、データ等（以下「成果物」という。）の著作権、その他の知的財産権は、すべて乙に属するものとする。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第６条（禁止事項）</div>
+    <p class="ind">１　甲は、乙が提供するノウハウ(類似するものも含む。)を乙の許可なく第三者に提供又は開示してはならない(コンサルティング、売買その他形式を問わない。有償無償を問わない。)。</p>
+    <p class="ind">２　甲は、乙の他の顧客に対し、乙が行う事業と同種の事業への勧誘など乙及び乙の顧客が迷惑を被る行為をしてはならない。</p>
+    <p class="ind">３　前２項に反する行為が発覚した場合、甲は乙に対し損害賠償金として実損害額又は金30万円のうち高い金額を支払うものとする。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第７条(秘密保持)</div>
+    <p class="ind">１　甲は、乙が提供するノウハウ等を乙の承諾なく第三者に口外しないことを誓約する。</p>
+    <p class="ind">２　甲は、乙が提供するノウハウ等を乙の承諾なくSNS、ブログなどインターネット上に公開しないことを誓約する。</p>
+    <p class="ind">３　前２項に反する行為が発覚した場合、甲は乙に対し損害賠償金として実損害額又は金30万円のうち高い金額を支払うものとする。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第８条(損害賠償)</div>
+    <p>甲又は乙が、本契約に違反して相手方に損害を与えたときは、相手方に対しすみやかにその損害を賠償しなければならない。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head red">第9条　クーリングオフについて</div>
+    <p class="red">本規定は、クーリングオフ（一定期間内の解除）に関する規定です。重要な規定ですので、本規定の内容を十分に読んでください。</p>
+    <p class="ind red">１　本契約の書面を甲が受領した日から起算して8日を経過するまでは、甲は、書面又は電磁的記録により本申し込みを撤回することができる。</p>
+    <p class="ind red">２　前項にかかわらず、乙が不実のことを告げる行為をしたことにより甲が誤認をし、又は乙が威迫したことにより甲が困惑し、これらによって甲が本申し込みの撤回を行わなかった場合には、本申し込みに関して、クーリングオフの権利その他所定の事項を記載した書面を甲が乙から改めて受領し、その内容について説明を受けた日から起算して8日を経過するまでは、甲は、書面又は電磁的記録により申し込みを撤回することができる。</p>
+    <p class="ind red">３　第1項及び第2項の申し込みの撤回は、甲が、本申し込みの撤回に係る書面又は電磁的記録を発した時に、その効力を生じる。</p>
+    <p class="ind red">４　第1項及び第2項の申し込みの撤回があった場合においては、乙は、甲に対し、その申し込みの撤回に伴う損害賠償又は違約金の支払を請求することができない。</p>
+    <p class="ind red">５　第1項及び第2項の申し込みの撤回があった場合には、既に本契約に基づき役務が提供されたときにおいても、乙は、甲に対し、本契約に係る役務の対価その他の金銭の支払を請求することができない。</p>
+    <p class="ind red">６　第1項及び第2項の申し込みの撤回があった場合において、本契約に関連して金銭を受領しているときは、乙は、甲に対し、速やかに、その全額を返還する。また、振込手数料は乙の負担とする。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第１０条(中途解約)</div>
+    <p class="ind">１　甲は、乙に対し、クーリングオフ期間経過後においても、書面又は電磁的記録で通知することにより、本契約を中途解約することができる。</p>
+    <p class="ind">２　前項に基づく中途解約の通知が行われた場合、本契約は、当該通知が到達した日が属する月の末日で終了するものとする。</p>
+    <p class="ind">３　前項によって本契約が中途解約された場合、乙は、甲に対し、支払済みの受講料から、本契約の残期間分の受講料相当額から以下の費用を差し引いた残額を返金する。</p>
+    <p class="ind2">⑴　本業務提供前の場合：契約締結及び登録料として15,000円</p>
+    <p class="ind2">⑵　本業務提供後の場合：5万円又は契約残額の20％に相当する額のいずれか低い額</p>
+    <p class="ind">４　甲が、乙に対し、本契約に基づく対価の支払いを行わなかった場合、下記各号のとおり、本契約は中途解約されたものとみなす。この場合においても前項の規定は準用されるものとする。</p>
+    <p class="ind2">⑴　対価が一括で支払われることが予定されていた場合：乙の甲に対する支払催告が甲に到達してから３０日が経過した日に本契約が中途解約されたものとみなす。</p>
+    <p class="ind2">⑵　対価が分割で支払われることが予定されていた場合：連続して２回以上支払いが行われなかった場合、２回目の支払期日が経過した日に本契約が中途解約されたものとみなす。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第１１条（成果非保証）</div>
+    <p>甲は、本サービスが自己成長および生活改善を支援するものであり、外見の変化、人間関係の向上、恋愛成就、社会的成功その他いかなる成果についても保証されるものではないことを確認し、これに同意する。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第１２条（管轄裁判所）</div>
+    <p>甲及び乙は、本契約に関して紛争が生じた場合には、乙の本店所在地を管轄する裁判所を第一審の専属的合意管轄裁判所とすることに合意する。</p>
+  </div>
+
+  <div class="article">
+    <div class="article-head">第１３条（免責）</div>
+    <p>甲は、本サービスに基づく助言、情報、提案の採否およびそれに基づく行動については、すべて自己の判断と責任において行うものとし、その結果について乙は一切の責任を負わないものとする。</p>
+  </div>
+
+  <p style="margin-top:14px;">以上本契約締結の証として本書２通を作成し、記入押印の上、各１通を保有する。</p>
+
+  <div class="sign-block">
+    <p class="sign-line">締結年月日：${v(fmtDate(date))}</p>
+    <p class="party">【甲】</p>
+    <p class="sign-line">住　　所：${v(addr)}</p>
+    <p class="sign-line name-seal"><span>氏　　名：${v(name)}</span><span class="seal">印</span></p>
+    <p class="sign-line">電話番号：${v(tel)}</p>
+    <p class="party">【乙】</p>
+    <p class="sign-line">住　　所：大阪府大阪市中央区南久宝寺町四丁目４−７エムバランス御堂筋本町9 F</p>
+    <p class="sign-line">法人名　：株式会社Men'sRise</p>
+    <p class="sign-line" style="padding-left:5em;">代表取締役　高野亮太</p>
+    <p class="sign-line">電話番号：090-8829-7138</p>
+    <p class="sign-line">契約担当者氏名：（　${v(staff)}　）</p>
+  </div>
+  `;
+  document.getElementById('page').innerHTML = html;
+}
+render();
+</script>
+</body>
+</html>
