@@ -16,17 +16,25 @@ export async function htmlToPdf(html: string): Promise<Uint8Array> {
     const puppeteer = (await import("puppeteer-core")).default;
     const chromium = (await import("@sparticuz/chromium")).default;
 
-    // Vercel/Lambda 上での既知の不具合回避
-    // - setGraphicsMode = false：GLライブラリ(libnss3 など)に依存させない
-    // - setHeadlessMode = true：明示的にheadless（"shell" モードでlibnss3を要求するのを抑止）
     chromium.setGraphicsMode = false;
     chromium.setHeadlessMode = true;
+
+    // Vercel の50MB関数サイズ制限に引っかかると @sparticuz/chromium の
+    // 同梱バイナリ(swiftshader/al2023等)が不完全に展開され、libnss3.so欠落で
+    // /tmp/chromium が起動できない。実行時にGitHub Releasesからtarを取得する
+    // 方式に切替（コールドスタートは少し遅くなるが、起動失敗より優先）。
+    // URLは env CHROMIUM_PACK_URL で差し替え可能（バージョン更新時はここを変える）。
+    const packUrl =
+      process.env.CHROMIUM_PACK_URL ||
+      "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
+
+    const executablePath =
+      process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath(packUrl));
 
     browser = (await puppeteer.launch({
       args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
       defaultViewport: chromium.defaultViewport,
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath()),
+      executablePath,
       headless: chromium.headless,
     })) as any;
   } else {
