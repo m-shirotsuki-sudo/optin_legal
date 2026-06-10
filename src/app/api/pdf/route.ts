@@ -37,8 +37,14 @@ export async function POST(req: NextRequest) {
   try {
     pdf = await htmlToPdf(fullHtml);
   } catch (e: any) {
-    console.error("[pdf]", e);
-    return NextResponse.json({ error: "PDF生成エラー: " + (e?.message ?? e) }, { status: 500 });
+    console.error("[pdf] generation failed:", e?.stack || e);
+    return NextResponse.json(
+      {
+        error: "PDF生成エラー: " + (e?.message ?? String(e)),
+        stack: process.env.NODE_ENV === "production" ? undefined : e?.stack,
+      },
+      { status: 500 }
+    );
   }
 
   // 発行履歴を記録（認証セッションがある場合は created_by を埋める）

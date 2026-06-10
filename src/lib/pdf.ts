@@ -1,12 +1,18 @@
 /**
  * HTML → PDF（A4縦・printBackground有効）。
  *
- * - 本番(Vercel/Serverless)：@sparticuz/chromium + puppeteer-core
- * - 開発(local Mac/Linux)：通常の puppeteer のフルChromiumを使う
- *
- * 切替は `process.env.VERCEL` 等で判定。ローカルでも puppeteer-core で動かしたい場合は
- * `PUPPETEER_EXECUTABLE_PATH` を env で渡せばOK。
+ * - 本番(Vercel/Serverless)：@sparticuz/chromium-min + puppeteer-core
+ *   バイナリは同梱せず、実行時にGitHub Releasesから取得する。
+ *   Vercel の関数サイズ50MB制限を確実に回避し、libnss3.so 等の
+ *   shared lib も pack tar に含まれているため起動失敗しない。
+ * - 開発(local Mac/Linux)：通常の puppeteer のフルChromiumを使う。
  */
+
+// pack tar URL（バージョン更新時はここを @sparticuz/chromium-min の version と
+// 合わせること）。env CHROMIUM_PACK_URL で実行時に差し替え可。
+const CHROMIUM_PACK_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
+
 export async function htmlToPdf(html: string): Promise<Uint8Array> {
   const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
@@ -14,20 +20,12 @@ export async function htmlToPdf(html: string): Promise<Uint8Array> {
 
   if (isServerless || process.env.PUPPETEER_EXECUTABLE_PATH) {
     const puppeteer = (await import("puppeteer-core")).default;
-    const chromium = (await import("@sparticuz/chromium")).default;
+    const chromium = (await import("@sparticuz/chromium-min")).default;
 
     chromium.setGraphicsMode = false;
     chromium.setHeadlessMode = true;
 
-    // Vercel の50MB関数サイズ制限に引っかかると @sparticuz/chromium の
-    // 同梱バイナリ(swiftshader/al2023等)が不完全に展開され、libnss3.so欠落で
-    // /tmp/chromium が起動できない。実行時にGitHub Releasesからtarを取得する
-    // 方式に切替（コールドスタートは少し遅くなるが、起動失敗より優先）。
-    // URLは env CHROMIUM_PACK_URL で差し替え可能（バージョン更新時はここを変える）。
-    const packUrl =
-      process.env.CHROMIUM_PACK_URL ||
-      "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
-
+    const packUrl = process.env.CHROMIUM_PACK_URL || CHROMIUM_PACK_URL;
     const executablePath =
       process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath(packUrl));
 
