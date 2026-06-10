@@ -143,7 +143,7 @@ export const MENSRISE_VIP_TEMPLATE_HTML = `
 /** Men's Rise VIPの可変フィールド定義（KICKOFF §6 と一致）。 */
 export const MENSRISE_VIP_VARIABLE_FIELDS = [
   { key: "customer_name", label: "氏名", type: "text", required: true, placeholder: "山田 太郎" },
-  { key: "customer_addr", label: "住所", type: "textarea", required: true, placeholder: "東京都〇〇区〇〇 1-2-3" },
+  { key: "customer_addr", label: "住所", type: "textarea", required: false, placeholder: "東京都〇〇区〇〇 1-2-3", hint: "任意。会社で別途記入する場合は空欄でOK" },
   { key: "customer_tel", label: "電話番号", type: "tel", required: true, hint: "数字とハイフン", placeholder: "090-1234-5678", pattern: "[0-9-]+" },
   { key: "contract_date", label: "締結年月日", type: "date", required: true },
   { key: "staff_name", label: "契約担当者氏名", type: "text", required: true, hint: "セールス担当", placeholder: "鈴木 一郎" },

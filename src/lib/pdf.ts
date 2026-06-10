@@ -15,12 +15,19 @@ export async function htmlToPdf(html: string): Promise<Uint8Array> {
   if (isServerless || process.env.PUPPETEER_EXECUTABLE_PATH) {
     const puppeteer = (await import("puppeteer-core")).default;
     const chromium = (await import("@sparticuz/chromium")).default;
+
+    // Vercel/Lambda 上での既知の不具合回避
+    // - setGraphicsMode = false：GLライブラリ(libnss3 など)に依存させない
+    // - setHeadlessMode = true：明示的にheadless（"shell" モードでlibnss3を要求するのを抑止）
+    chromium.setGraphicsMode = false;
+    chromium.setHeadlessMode = true;
+
     browser = (await puppeteer.launch({
-      args: chromium.args,
+      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
       defaultViewport: chromium.defaultViewport,
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath()),
-      headless: true,
+      headless: chromium.headless,
     })) as any;
   } else {
     // dev only：本番にはバンドルしないように動的import
