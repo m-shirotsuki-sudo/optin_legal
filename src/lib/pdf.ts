@@ -45,6 +45,12 @@ export async function htmlToPdf(html: string): Promise<Uint8Array> {
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
+    // Webフォント（Noto Serif JP / Noto Sans JP）の読込完了を確実に待つ。
+    // networkidle0 だけだと FOIT/FOUT のタイミングで字が抜けるケースがある。
+    await page.evaluate(async () => {
+      // @ts-ignore
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    });
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -63,9 +69,13 @@ export function buildPrintableHtml(innerHtml: string): string {
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- Vercel上のChromiumには日本語フォントが入っていないので、Google FontsのNoto Serif JP（明朝）を読み込む。 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; padding: 0; background: #fff; }
-  body { font-family: "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif; color: #14171d; }
+  body { font-family: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif; color: #14171d; }
   .contract-page { width: auto; padding: 14mm 16mm; font-size: 9.8pt; line-height: 1.72; }
   .contract-page .notice-box { border: 1.5px solid #FF0000; color: #FF0000; font-size: 9.4pt; line-height: 1.7; padding: 8px 12px; margin: 0 0 18px; text-align: justify; }
   .contract-page .doc-title { text-align: center; font-size: 15pt; font-weight: 700; letter-spacing: .28em; margin: 0 0 20px; }
