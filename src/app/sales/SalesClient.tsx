@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { Company, Plan, VariableField } from "@/types/contract";
 import { renderTemplate, flattenFields } from "@/lib/render";
 
@@ -74,8 +75,16 @@ export function SalesClient({ companies, plans }: Props) {
   return (
     <div className="app" style={layoutStyle}>
       <div className="panel-form no-print" style={formPanelStyle}>
-        <div style={{ fontSize: 12, letterSpacing: ".14em", color: "var(--accent)", fontWeight: 700 }}>
-          OPT-IN · 契約書作成ツール
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 12, letterSpacing: ".14em", color: "var(--accent)", fontWeight: 700 }}>
+            OPT-IN · 契約書作成ツール
+          </div>
+          <Link
+            href="/admin"
+            style={{ fontSize: 12, color: "var(--ink-soft)", textDecoration: "none", padding: "4px 10px", border: "1px solid var(--line)", borderRadius: 6 }}
+          >
+            ← 管理画面
+          </Link>
         </div>
         <h1 style={{ fontSize: 18, margin: "6px 0 8px" }}>セールス画面</h1>
         <div style={{ background: "#fff4e5", border: "1px solid #f0c987", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#8a5a00", marginBottom: 14 }}>
