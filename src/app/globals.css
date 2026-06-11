@@ -194,6 +194,7 @@ body {
   }
 }
 
-/* === 改ページコンポーザ：ホバーで＋ボタンが浮き上がる === */
-.contract-page .composer-inserter:hover { opacity: 1 !important; }
-.contract-page .composer-block:hover { background: rgba(47, 109, 209, 0.04); }
+/* === 改ページコンポーザ === */
+.contract-page .composer-inserter:hover { opacity: 1 !important; transform: scale(1.02); }
+.contract-page .composer-block { padding: 2px 4px; margin: 2px 0; border-radius: 4px; }
+.contract-page .composer-block:hover { background: rgba(47, 109, 209, 0.06); outline: 1px dashed rgba(47, 109, 209, 0.3); }

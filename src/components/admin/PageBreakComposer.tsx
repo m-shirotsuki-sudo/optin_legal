@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 
 interface Props {
   /** 保存形式の本文HTML */
@@ -24,9 +24,17 @@ interface Block {
  *    DOMParser で構文木にしてから outerHTML で素直に再結合するだけ。
  */
 export function PageBreakComposer({ value, onChange }: Props) {
-  const blocks = useMemo(() => parseBlocks(value), [value]);
+  // SSR時にはDOMParserが使えないので、マウント後にだけパースする
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setBlocks(parseBlocks(value));
+  }, [value]);
 
   function updateBlocks(next: Block[]) {
+    setBlocks(next);
     onChange(next.map((b) => b.html).join("\n"));
   }
 
@@ -43,6 +51,13 @@ export function PageBreakComposer({ value, onChange }: Props) {
     updateBlocks(blocks.filter((_, i) => i !== idx));
   }
 
+  if (!mounted) {
+    return (
+      <div style={{ padding: 30, textAlign: "center", color: "#9aa1ad", fontSize: 12 }}>
+        プレビューを準備中…
+      </div>
+    );
+  }
   if (blocks.length === 0) {
     return (
       <div style={{ padding: 30, textAlign: "center", color: "#9aa1ad", fontSize: 12 }}>
@@ -161,31 +176,32 @@ const inserterStyle: React.CSSProperties = {
   alignItems: "center",
   gap: 8,
   width: "100%",
-  padding: "4px 0",
-  margin: "2px 0",
+  padding: "8px 0",
+  margin: "4px 0",
   background: "transparent",
   border: "none",
   cursor: "pointer",
-  opacity: 0.25,
-  transition: "opacity .15s",
+  opacity: 0.85, // ← 常時はっきり見える
+  transition: "opacity .15s, transform .1s",
 };
 
 const inserterLineStyle: React.CSSProperties = {
   flex: 1,
   height: 0,
-  borderTop: "1.5px dashed #6b8cb8",
+  borderTop: "2px dashed #2f6dd1",
 };
 
 const inserterLabelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 13,
   fontWeight: 700,
-  color: "#2f6dd1",
-  background: "#eef5ff",
-  padding: "3px 10px",
-  borderRadius: 12,
+  color: "#fff",
+  background: "#2f6dd1",
+  padding: "5px 14px",
+  borderRadius: 14,
   letterSpacing: ".05em",
-  border: "1px solid #cfe0f1",
+  border: "1px solid #2f6dd1",
   whiteSpace: "nowrap",
+  boxShadow: "0 1px 3px rgba(47,109,209,.2)",
 };
 
 const breakBadgeStyle: React.CSSProperties = {
