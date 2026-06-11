@@ -9,47 +9,30 @@ interface Props {
   onChange: (next: string) => void;
 }
 
-interface Block {
-  html: string;
-  isPageBreak: boolean;
-}
-
 /**
- * 本文HTMLを「トップレベル要素のリスト」に分解して描画し、
- * 各要素の間に「＋ ここで改ページ」をクリックできるホットゾーンを置く。
- * 既存の <div class="page-break"></div> は「× 改ページを解除」のバッジとして表示し、
- * クリック1つで取り消せる。
+ * 本文HTML中の **どこにでも** クリック1つで改ページを挿入・解除できるコンポーザ。
  *
- * ※ HTML編集も WYSIWYG も触らない。`{{key}}` や class 等は完全にそのまま保持される。
- *    DOMParser で構文木にしてから outerHTML で素直に再結合するだけ。
+ * トップレベルだけでなく、`<div class="article">` の中の段落の前・表の前など、
+ * あらゆる兄弟要素の間に「＋ ここで改ページ」ボタンを置く。
+ * `<p>` `<table>` `<h1>` 等の "原子要素" は内側に分け入らず、丸ごと描画。
+ * `<div>` `<section>` のようなコンテナは React で再帰描画して、内側の兄弟関係も
+ * 編集可能にする。
+ *
+ * 仕組み：
+ * - 状態管理しない。`value` を毎レンダ DOMParser で再パース → ツリー描画。
+ * - 挿入／削除は parse → 変更 → innerHTML 再シリアライズ → onChange に渡す。
+ * - これにより `{{key}}` や独自CSSクラスを一切壊さない。
  */
+
+// 「原子要素」：内側に分け入らず丸ごと表示する（=その中に改ページを入れる必要が薄い）
+const ATOMIC_TAGS = new Set([
+  "p", "table", "h1", "h2", "h3", "h4", "h5", "h6",
+  "pre", "blockquote", "img", "hr", "ul", "ol", "figure",
+]);
+
 export function PageBreakComposer({ value, onChange }: Props) {
-  // SSR時にはDOMParserが使えないので、マウント後にだけパースする
-  const [blocks, setBlocks] = useState<Block[]>([]);
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    setBlocks(parseBlocks(value));
-  }, [value]);
-
-  function updateBlocks(next: Block[]) {
-    setBlocks(next);
-    onChange(next.map((b) => b.html).join("\n"));
-  }
-
-  function insertBreakAt(idx: number) {
-    const next = [...blocks];
-    next.splice(idx, 0, {
-      html: '<div class="page-break"></div>',
-      isPageBreak: true,
-    });
-    updateBlocks(next);
-  }
-
-  function removeBreak(idx: number) {
-    updateBlocks(blocks.filter((_, i) => i !== idx));
-  }
+  useEffect(() => setMounted(true), []);
 
   if (!mounted) {
     return (
@@ -58,7 +41,10 @@ export function PageBreakComposer({ value, onChange }: Props) {
       </div>
     );
   }
-  if (blocks.length === 0) {
+
+  const doc = parseHtml(value);
+  const root = doc.body;
+  if (root.children.length === 0) {
     return (
       <div style={{ padding: 30, textAlign: "center", color: "#9aa1ad", fontSize: 12 }}>
         本文HTMLが空です。docx取込か、HTML直接編集で本文を入れてください。
@@ -66,38 +52,126 @@ export function PageBreakComposer({ value, onChange }: Props) {
     );
   }
 
+  function mutateAndSave(mutator: (root: HTMLElement) => void) {
+    const fresh = parseHtml(value);
+    mutator(fresh.body);
+    onChange(fresh.body.innerHTML);
+  }
+
+  // path = [0番目の子, さらにその中の N番目の子, ...] の配列
+  function insertBreakAt(path: number[]) {
+    mutateAndSave((rootEl) => {
+      const parent = navigatePath(rootEl, path.slice(0, -1));
+      const idx = path[path.length - 1];
+      const newBreak = parent.ownerDocument!.createElement("div");
+      newBreak.className = "page-break";
+      const before = parent.children[idx];
+      if (before) parent.insertBefore(newBreak, before);
+      else parent.appendChild(newBreak);
+    });
+  }
+
+  function removeAt(path: number[]) {
+    mutateAndSave((rootEl) => {
+      const parent = navigatePath(rootEl, path.slice(0, -1));
+      const idx = path[path.length - 1];
+      const el = parent.children[idx];
+      if (el) el.remove();
+    });
+  }
+
   return (
     <div className="contract-page" style={composerPageStyle}>
-      <Inserter onClick={() => insertBreakAt(0)} />
-      {blocks.map((b, idx) => (
-        <React.Fragment key={idx}>
-          {b.isPageBreak ? (
-            <BreakBadge onRemove={() => removeBreak(idx)} />
-          ) : (
-            <div
-              className="composer-block"
-              style={blockStyle}
-              dangerouslySetInnerHTML={{ __html: b.html }}
-            />
-          )}
-          <Inserter onClick={() => insertBreakAt(idx + 1)} />
-        </React.Fragment>
-      ))}
+      <Tree
+        parent={root}
+        path={[]}
+        onInsert={insertBreakAt}
+        onRemove={removeAt}
+      />
     </div>
   );
 }
 
-function Inserter({ onClick }: { onClick: () => void }) {
+function Tree({
+  parent,
+  path,
+  onInsert,
+  onRemove,
+}: {
+  parent: Element;
+  path: number[];
+  onInsert: (p: number[]) => void;
+  onRemove: (p: number[]) => void;
+}) {
+  const children = Array.from(parent.children);
+  const depth = path.length;
+  return (
+    <>
+      <Inserter depth={depth} onClick={() => onInsert([...path, 0])} />
+      {children.map((child, idx) => {
+        const childPath = [...path, idx];
+        // 改ページバッジ
+        if (child.classList.contains("page-break")) {
+          return (
+            <React.Fragment key={idx}>
+              <BreakBadge onRemove={() => onRemove(childPath)} />
+              <Inserter depth={depth} onClick={() => onInsert([...path, idx + 1])} />
+            </React.Fragment>
+          );
+        }
+        const tag = child.tagName.toLowerCase();
+        const isAtomic = ATOMIC_TAGS.has(tag) || child.children.length === 0;
+        if (isAtomic) {
+          return (
+            <React.Fragment key={idx}>
+              <div className="composer-block" dangerouslySetInnerHTML={{ __html: child.outerHTML }} />
+              <Inserter depth={depth} onClick={() => onInsert([...path, idx + 1])} />
+            </React.Fragment>
+          );
+        }
+        // コンテナ：React で再帰描画
+        const className = child.getAttribute("class") || undefined;
+        return (
+          <React.Fragment key={idx}>
+            {React.createElement(
+              tag,
+              { className, "data-composer-container": "true" },
+              <Tree parent={child} path={childPath} onInsert={onInsert} onRemove={onRemove} />
+            )}
+            <Inserter depth={depth} onClick={() => onInsert([...path, idx + 1])} />
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+}
+
+function Inserter({ depth, onClick }: { depth: number; onClick: () => void }) {
+  // 深いネストの中の+は控えめに、トップレベルの+は目立つように
+  const isTop = depth === 0;
   return (
     <button
       type="button"
       onClick={onClick}
       className="composer-inserter"
       title="ここに改ページを挿入"
-      style={inserterStyle}
+      style={{
+        ...inserterStyle,
+        margin: isTop ? "6px 0" : "2px 0",
+        padding: isTop ? "6px 0" : "2px 0",
+        opacity: isTop ? 0.85 : 0.45,
+      }}
     >
       <span style={inserterLineStyle} />
-      <span style={inserterLabelStyle}>＋ ここで改ページ</span>
+      <span
+        style={{
+          ...inserterLabelStyle,
+          fontSize: isTop ? 13 : 10,
+          padding: isTop ? "5px 14px" : "1px 8px",
+        }}
+      >
+        ＋ ここで改ページ
+      </span>
       <span style={inserterLineStyle} />
     </button>
   );
@@ -142,41 +216,30 @@ function BreakBadge({ onRemove }: { onRemove: () => void }) {
   );
 }
 
-function parseBlocks(html: string): Block[] {
-  if (typeof window === "undefined") return [];
+function parseHtml(html: string): Document {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div id="__root__">${html}</div>`, "text/html");
-  const root = doc.getElementById("__root__");
-  if (!root) return [];
-  const blocks: Block[] = [];
-  Array.from(root.children).forEach((el) => {
-    blocks.push({
-      html: el.outerHTML,
-      isPageBreak: el.classList.contains("page-break"),
-    });
-  });
-  return blocks;
+  return parser.parseFromString(`<html><body>${html}</body></html>`, "text/html");
+}
+
+function navigatePath(root: HTMLElement, path: number[]): HTMLElement {
+  let current: Element = root;
+  for (const idx of path) {
+    current = current.children[idx];
+  }
+  return current as HTMLElement;
 }
 
 const composerPageStyle: React.CSSProperties = {
-  // .contract-page のスタイルは globals.css 側で width:210mm 等が適用される。
-  // A4の改ページ位置目印として薄い赤い水平線を 297mm 刻みで描画。
+  // A4 境界線（297mm刻みの薄い赤線）
   backgroundImage:
     "repeating-linear-gradient(to bottom, transparent 0, transparent calc(297mm - 1px), rgba(255,80,80,.35) calc(297mm - 1px), rgba(255,80,80,.35) 297mm)",
-  // ↓ PDF実物（buildPrintableHtml）と完全一致させて、ルーラー位置を信用できるようにする
+  // PDF生成側 (buildPrintableHtml) と一致させる：余白・フォント・サイズ・行高
   padding: "14mm 16mm",
   fontFamily: '"Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif',
   fontSize: "9.8pt",
   lineHeight: 1.72,
   boxShadow: "0 1px 6px rgba(0,0,0,.08)",
-  // 余白による境界線の起算点ズレを防ぐためにbackground-originを設定
   backgroundOrigin: "border-box",
-};
-
-const blockStyle: React.CSSProperties = {
-  // ブロックがエディタ上で識別できるように、ホバー時に薄い枠を出す
-  borderRadius: 4,
-  transition: "background .15s",
 };
 
 const inserterStyle: React.CSSProperties = {
@@ -184,12 +247,9 @@ const inserterStyle: React.CSSProperties = {
   alignItems: "center",
   gap: 8,
   width: "100%",
-  padding: "8px 0",
-  margin: "4px 0",
   background: "transparent",
   border: "none",
   cursor: "pointer",
-  opacity: 0.85, // ← 常時はっきり見える
   transition: "opacity .15s, transform .1s",
 };
 
@@ -200,11 +260,9 @@ const inserterLineStyle: React.CSSProperties = {
 };
 
 const inserterLabelStyle: React.CSSProperties = {
-  fontSize: 13,
   fontWeight: 700,
   color: "#fff",
   background: "#2f6dd1",
-  padding: "5px 14px",
   borderRadius: 14,
   letterSpacing: ".05em",
   border: "1px solid #2f6dd1",
