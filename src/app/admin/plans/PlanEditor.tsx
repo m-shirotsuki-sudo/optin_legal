@@ -44,8 +44,11 @@ export function PlanEditor({ companies, plan }: Props) {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>("");
   const [pdfPreviewing, setPdfPreviewing] = useState(false);
 
-  // 編集モード：visual=ビジュアル編集、html=生HTML編集（上級者用）
-  const [editMode, setEditMode] = useState<"visual" | "html">("visual");
+  // 編集モード：html=生HTML編集（既存の複雑テンプレを安全に編集）、
+  //              visual=ビジュアル編集（docx取込直後など、まだ構造がシンプルな時用）
+  // 既定はHTML。複雑なクラス構造（.notice-box, .doc-title 等）はTipTapが
+  // 取り込み時に剥がしてしまうため、既存テンプレに対しては破壊的になる。
+  const [editMode, setEditMode] = useState<"visual" | "html">("html");
 
   // 可変フィールド一覧を解析（ビジュアルエディタのチップ表示・挿入メニュー用）
   const parsedVariableFields = useMemo(() => {
@@ -285,22 +288,7 @@ export function PlanEditor({ companies, plan }: Props) {
                 {importMsg}
               </p>
             )}
-            <div style={{ display: "flex", gap: 6, marginBottom: 6, fontSize: 11 }}>
-              <button
-                type="button"
-                onClick={() => setEditMode("visual")}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 4,
-                  border: "1px solid #d8dde7",
-                  background: editMode === "visual" ? "#2f6dd1" : "#fff",
-                  color: editMode === "visual" ? "#fff" : "#14171d",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
-              >
-                ✏️ ビジュアル編集
-              </button>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6, fontSize: 11, alignItems: "center" }}>
               <button
                 type="button"
                 onClick={() => setEditMode("html")}
@@ -314,8 +302,35 @@ export function PlanEditor({ companies, plan }: Props) {
                   fontWeight: 600,
                 }}
               >
-                {`</> HTML直接編集`}
+                {`</> HTML直接編集（安全・推奨）`}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const ok = confirm(
+                    "⚠️ ビジュアル編集は実験中です。\n\n" +
+                      "複雑なHTML（赤囲み枠、独自CSSクラス等）を含むテンプレでは、" +
+                      "切替時に一部の見た目が剥がれる可能性があります。" +
+                      "保存ボタンを押さなければDBは変更されません。\n\n" +
+                      "切り替えますか？"
+                  );
+                  if (ok) setEditMode("visual");
+                }}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 4,
+                  border: "1px solid #d8dde7",
+                  background: editMode === "visual" ? "#2f6dd1" : "#fff",
+                  color: editMode === "visual" ? "#fff" : "#14171d",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                ✏️ ビジュアル編集（実験中）
+              </button>
+              <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                ※ 既存テンプレを編集中の方は「HTML直接編集」のままで。docx取込直後はビジュアル編集が楽です。
+              </span>
             </div>
             {editMode === "visual" ? (
               <RichTemplateEditor

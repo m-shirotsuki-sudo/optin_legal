@@ -10,6 +10,9 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { PageBreakNode } from "@/lib/editor/PageBreakNode";
 import { VariableNode } from "@/lib/editor/VariableNode";
+import { PreserveClasses } from "@/lib/editor/preserveClasses";
+import { DivBlock } from "@/lib/editor/DivBlock";
+import { SpanInline } from "@/lib/editor/SpanInline";
 import {
   templateToEditorHtml,
   editorHtmlToTemplate,
@@ -48,6 +51,9 @@ export function RichTemplateEditor({ value, onChange, variableFields }: Props) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       PageBreakNode,
       VariableNode,
+      DivBlock,
+      SpanInline,
+      PreserveClasses,
     ],
     content: editorInitialHtml,
     immediatelyRender: false,
@@ -64,12 +70,13 @@ export function RichTemplateEditor({ value, onChange, variableFields }: Props) {
   });
 
   // 外部で value が大きく変わった時（docx取込）にエディタ内容を差し替える
+  // emitUpdate=false で onUpdate を発火させない（初期化時に勝手に保存させない）
   useEffect(() => {
     if (!editor) return;
     setReady(true);
     const currentSaved = editorHtmlToTemplate(editor.getHTML());
     if (currentSaved !== value) {
-      editor.commands.setContent(templateToEditorHtml(value, variableFields));
+      editor.commands.setContent(templateToEditorHtml(value, variableFields), { emitUpdate: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, value]);
