@@ -193,3 +193,7 @@ body {
     margin: 0;
   }
 }
+
+/* === 改ページコンポーザ：ホバーで＋ボタンが浮き上がる === */
+.contract-page .composer-inserter:hover { opacity: 1 !important; }
+.contract-page .composer-block:hover { background: rgba(47, 109, 209, 0.04); }

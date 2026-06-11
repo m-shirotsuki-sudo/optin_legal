@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Company, Plan } from "@/types/contract";
 import { renderTemplate } from "@/lib/render";
 import { RichTemplateEditor } from "@/components/admin/RichTemplateEditor";
+import { PageBreakComposer } from "@/components/admin/PageBreakComposer";
 
 interface Props {
   companies: Company[];
@@ -383,16 +384,19 @@ export function PlanEditor({ companies, plan }: Props) {
         </div>
 
         <div>
-          <Section title="プレビュー（赤い点線＝A4の改ページ位置）">
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <Section title="改ページ調整（クリックで挿入・解除）">
+            <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button onClick={previewPdf} disabled={pdfPreviewing || !templateHtml} style={{ ...btn, padding: "6px 14px", fontSize: 12 }}>
                 {pdfPreviewing ? "生成中…" : "📄 PDFで実物プレビュー"}
               </button>
               {pdfPreviewUrl && (
-                <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--accent)", alignSelf: "center" }}>
+                <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--accent)" }}>
                   別タブで開く →
                 </a>
               )}
+              <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: "auto" }}>
+                薄い赤線＝A4ページ境界（297mm刻み）
+              </span>
             </div>
             {pdfPreviewUrl && (
               <iframe
@@ -401,17 +405,13 @@ export function PlanEditor({ companies, plan }: Props) {
                 title="PDFプレビュー"
               />
             )}
-            <div style={a4WrapperStyle}>
-              <div
-                className="contract-page"
-                style={a4PageStyle}
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+            <div style={{ background: "#eef5ff", border: "1px solid #cfe0f1", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#2a4a6b", marginBottom: 10, lineHeight: 1.6 }}>
+              💡 <b>使い方</b>：プレビュー内の段落と段落の間にカーソルを当てると <b>＋ ここで改ページ</b> が薄く出ます。クリックで挿入。挿入済みの赤バッジ <b>✂ ここで改ページ</b> は <b>× 解除</b> ボタンで取り消し。<br />
+              本物の改ページ位置は「📄 PDFで実物プレビュー」で確認してください。
             </div>
-            <p style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 6, lineHeight: 1.5 }}>
-              ↑ 赤い点線が <b>A4の改ページ境界</b>。点線を文字がまたぐと、その位置でページが割れます。
-              境界の直前で <code>{`<div class="page-break"></div>`}</code> を入れると、強制的に次のページから始まります。
-            </p>
+            <div style={a4WrapperStyle}>
+              <PageBreakComposer value={templateHtml} onChange={setTemplateHtml} />
+            </div>
           </Section>
         </div>
       </div>
