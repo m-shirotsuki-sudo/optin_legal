@@ -9,9 +9,10 @@
  */
 
 // pack tar URL（バージョン更新時はここを @sparticuz/chromium-min の version と
-// 合わせること）。env CHROMIUM_PACK_URL で実行時に差し替え可。
+// 合わせること）。v138以降は arch 別（x64/arm64）になっている。Vercel は x64。
+// env CHROMIUM_PACK_URL で実行時に差し替え可。
 const CHROMIUM_PACK_URL =
-  "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar";
 
 export async function htmlToPdf(html: string): Promise<Uint8Array> {
   const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -22,8 +23,9 @@ export async function htmlToPdf(html: string): Promise<Uint8Array> {
     const puppeteer = (await import("puppeteer-core")).default;
     const chromium = (await import("@sparticuz/chromium-min")).default;
 
+    // v149 で setHeadlessMode / defaultViewport / headless getter は削除済み。
+    // graphics off だけ残す（WebGL不要・libnss3 等への依存を最小化）。
     chromium.setGraphicsMode = false;
-    chromium.setHeadlessMode = true;
 
     const packUrl = process.env.CHROMIUM_PACK_URL || CHROMIUM_PACK_URL;
     const executablePath =
@@ -31,9 +33,8 @@ export async function htmlToPdf(html: string): Promise<Uint8Array> {
 
     browser = (await puppeteer.launch({
       args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
-      defaultViewport: chromium.defaultViewport,
       executablePath,
-      headless: chromium.headless,
+      headless: true,
     })) as any;
   } else {
     // dev only：本番にはバンドルしないように動的import
