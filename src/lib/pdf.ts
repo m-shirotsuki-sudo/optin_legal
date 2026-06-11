@@ -102,6 +102,18 @@ export function buildPrintableHtml(innerHtml: string): string {
   .contract-page .sign-line { margin: 1px 0; }
   .contract-page .name-seal { display: flex; justify-content: space-between; align-items: baseline; }
   .contract-page .name-seal .seal { color: #888; padding-right: 2em; }
+  /* ===== 改ページ制御ユーティリティ =====
+     テンプレ本文に以下を埋め込むと、その位置で挙動が変わる。
+     <div class="page-break"></div>           ：ここで必ず改ページ
+     <div class="keep-together">…</div>       ：このブロックは途中で改ページしない
+     <span class="no-break">…</span>          ：このインラインを途中で折らない
+     既存の .svc-table / .pay-table / .article は default で break-inside:avoid 済み。
+  */
+  .contract-page .page-break { break-before: page; page-break-before: always; height: 0; margin: 0; padding: 0; border: 0; }
+  .contract-page .keep-together { break-inside: avoid; page-break-inside: avoid; }
+  .contract-page .no-break { white-space: nowrap; }
+  /* 「次の見出しと一緒に保持する」用。直後の article-head と切れない */
+  .contract-page .keep-with-next { break-after: avoid; page-break-after: avoid; }
   @page { size: A4; margin: 0; }
 </style>
 </head>

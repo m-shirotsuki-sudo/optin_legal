@@ -200,6 +200,34 @@ export function PlanEditor({ companies, plan }: Props) {
               value={templateHtml}
               onChange={(e) => setTemplateHtml(e.target.value)}
             />
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ fontSize: 12, cursor: "pointer", color: "var(--accent)" }}>
+                改ページ・文字切れを調整したい時（クリックで展開）
+              </summary>
+              <div style={{ fontSize: 12, lineHeight: 1.7, color: "var(--ink)", background: "#f7f9fc", padding: "10px 12px", borderRadius: 6, marginTop: 6 }}>
+                テンプレ本文に下記タグを埋め込むと、生成PDFの改ページを制御できます。
+                <ul style={{ paddingLeft: 18, margin: "6px 0" }}>
+                  <li>
+                    <code>{`<div class="page-break"></div>`}</code>
+                    　← ここで<b>必ず改ページ</b>。条と条の間、署名ブロックの直前などに置く。
+                  </li>
+                  <li>
+                    <code>{`<div class="keep-together">…</div>`}</code>
+                    　← このブロックの<b>途中で改ページしない</b>。表や条文ブロックを丸ごと包む。
+                  </li>
+                  <li>
+                    <code>{`<div class="keep-with-next">…</div>`}</code>
+                    　← 直後の要素と<b>離さない</b>（見出しだけページ末に残るのを防ぐ）。
+                  </li>
+                  <li>
+                    <code>{`<span class="no-break">100,000円</span>`}</code>
+                    　← この行内テキストを<b>折り返さない</b>。金額・口座番号などに。
+                  </li>
+                </ul>
+                既に <code>.article</code> / <code>.svc-table</code> / <code>.pay-table</code> は<b>標準で途中改ページ禁止</b>になっています。
+                上のプレビューは1枚に圧縮表示なので、改ページ位置の確認は<b>実際にPDFを発行して確認</b>してください。
+              </div>
+            </details>
           </Section>
 
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
