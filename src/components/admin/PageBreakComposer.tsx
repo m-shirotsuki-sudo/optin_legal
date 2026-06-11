@@ -163,6 +163,14 @@ const composerPageStyle: React.CSSProperties = {
   // A4の改ページ位置目印として薄い赤い水平線を 297mm 刻みで描画。
   backgroundImage:
     "repeating-linear-gradient(to bottom, transparent 0, transparent calc(297mm - 1px), rgba(255,80,80,.35) calc(297mm - 1px), rgba(255,80,80,.35) 297mm)",
+  // ↓ PDF実物（buildPrintableHtml）と完全一致させて、ルーラー位置を信用できるようにする
+  padding: "14mm 16mm",
+  fontFamily: '"Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif',
+  fontSize: "9.8pt",
+  lineHeight: 1.72,
+  boxShadow: "0 1px 6px rgba(0,0,0,.08)",
+  // 余白による境界線の起算点ズレを防ぐためにbackground-originを設定
+  backgroundOrigin: "border-box",
 };
 
 const blockStyle: React.CSSProperties = {
