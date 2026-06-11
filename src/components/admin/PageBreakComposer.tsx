@@ -80,16 +80,68 @@ export function PageBreakComposer({ value, onChange }: Props) {
     });
   }
 
+  // 強制改ページの数からページ数を算出（最低1ページ）
+  const breakCount = countPageBreaks(root);
+  const totalPages = breakCount + 1;
+
   return (
-    <div className="contract-page" style={composerPageStyle}>
-      <Tree
-        parent={root}
-        path={[]}
-        onInsert={insertBreakAt}
-        onRemove={removeAt}
-      />
+    <div>
+      <div style={overallHeaderStyle}>
+        📄 全 <b style={{ color: "#2f6dd1", fontSize: 14 }}>{totalPages}</b> ページ構成
+        <span style={{ marginLeft: 12, color: "#9aa1ad", fontWeight: 400, fontSize: 11 }}>
+          ※ 自然改ページ（Puppeteer 側で自動）を含むと実際はもう少し多くなる可能性あり。「📄 PDFで実物プレビュー」で正確に確認。
+        </span>
+      </div>
+      <div className="contract-page" style={composerPageStyle}>
+        <PageHeader pageNum={1} />
+        <Tree
+          parent={root}
+          path={[]}
+          onInsert={insertBreakAt}
+          onRemove={removeAt}
+          pageState={{ current: 1, total: totalPages }}
+        />
+      </div>
     </div>
   );
+}
+
+function countPageBreaks(root: Element): number {
+  return root.querySelectorAll("div.page-break").length;
+}
+
+function PageHeader({ pageNum }: { pageNum: number }) {
+  return (
+    <div style={pageHeaderStyle} contentEditable={false}>
+      <span style={pageHeaderBadgeStyle}>📄 ページ {pageNum}</span>
+      <span style={{ flex: 1, borderTop: "1px solid #cfe0f1" }} />
+    </div>
+  );
+}
+
+function PageDivider({ fromPage, toPage }: { fromPage: number; toPage: number }) {
+  return (
+    <div style={pageDividerStyle} contentEditable={false}>
+      <div style={pageDividerEndStyle}>
+        <span style={{ flex: 1, borderTop: "2px solid #c0392b" }} />
+        <span style={pageDividerEndLabelStyle}>↑ ここまで ページ {fromPage}</span>
+        <span style={{ flex: 1, borderTop: "2px solid #c0392b" }} />
+      </div>
+      <div style={pageGapStyle}>
+        <span style={{ color: "#9aa1ad", fontSize: 11, letterSpacing: ".1em" }}>━ ✂ 改ページ ✂ ━</span>
+      </div>
+      <div style={pageDividerStartStyle}>
+        <span style={{ flex: 1, borderTop: "2px solid #1f7a42" }} />
+        <span style={pageDividerStartLabelStyle}>↓ ここから ページ {toPage}</span>
+        <span style={{ flex: 1, borderTop: "2px solid #1f7a42" }} />
+      </div>
+    </div>
+  );
+}
+
+interface PageState {
+  current: number;
+  total: number;
 }
 
 function Tree({
@@ -97,11 +149,13 @@ function Tree({
   path,
   onInsert,
   onRemove,
+  pageState,
 }: {
   parent: Element;
   path: number[];
   onInsert: (p: number[]) => void;
   onRemove: (p: number[]) => void;
+  pageState: PageState;
 }) {
   const children = Array.from(parent.children);
   const depth = path.length;
@@ -110,11 +164,16 @@ function Tree({
       <Inserter depth={depth} onClick={() => onInsert([...path, 0])} />
       {children.map((child, idx) => {
         const childPath = [...path, idx];
-        // 改ページバッジ
+        // 改ページバッジ：ページ境界を視覚化、+ ページ番号を進める
         if (child.classList.contains("page-break")) {
+          const from = pageState.current;
+          const to = pageState.current + 1;
+          pageState.current = to;
           return (
             <React.Fragment key={idx}>
-              <BreakBadge onRemove={() => onRemove(childPath)} />
+              <PageDivider fromPage={from} toPage={to} />
+              <RemoveBreakBar onRemove={() => onRemove(childPath)} />
+              <PageHeader pageNum={to} />
               <Inserter depth={depth} onClick={() => onInsert([...path, idx + 1])} />
             </React.Fragment>
           );
@@ -136,13 +195,37 @@ function Tree({
             {React.createElement(
               tag,
               { className, "data-composer-container": "true" },
-              <Tree parent={child} path={childPath} onInsert={onInsert} onRemove={onRemove} />
+              <Tree parent={child} path={childPath} onInsert={onInsert} onRemove={onRemove} pageState={pageState} />
             )}
             <Inserter depth={depth} onClick={() => onInsert([...path, idx + 1])} />
           </React.Fragment>
         );
       })}
     </>
+  );
+}
+
+function RemoveBreakBar({ onRemove }: { onRemove: () => void }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", margin: "2px 0 6px" }} contentEditable={false}>
+      <button
+        type="button"
+        onClick={onRemove}
+        title="この改ページを解除"
+        style={{
+          background: "#fff",
+          border: "1px solid #ff5050",
+          color: "#ff5050",
+          fontSize: 11,
+          padding: "2px 10px",
+          borderRadius: 12,
+          cursor: "pointer",
+          fontWeight: 700,
+        }}
+      >
+        × この改ページを解除
+      </button>
+    </div>
   );
 }
 
@@ -174,45 +257,6 @@ function Inserter({ depth, onClick }: { depth: number; onClick: () => void }) {
       </span>
       <span style={inserterLineStyle} />
     </button>
-  );
-}
-
-function BreakBadge({ onRemove }: { onRemove: () => void }) {
-  return (
-    <div style={breakBadgeStyle}>
-      <span style={{ flex: 1, height: 0, borderTop: "2px solid #ff5050" }} />
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: "#fff",
-          background: "#ff5050",
-          padding: "3px 10px",
-          borderRadius: 12,
-          letterSpacing: ".08em",
-        }}
-      >
-        ✂ ここで改ページ
-      </span>
-      <button
-        type="button"
-        onClick={onRemove}
-        style={{
-          background: "transparent",
-          border: "1px solid #ff5050",
-          color: "#ff5050",
-          fontSize: 11,
-          padding: "2px 8px",
-          borderRadius: 12,
-          cursor: "pointer",
-          fontWeight: 700,
-        }}
-        title="この改ページを解除"
-      >
-        × 解除
-      </button>
-      <span style={{ flex: 1, height: 0, borderTop: "2px solid #ff5050" }} />
-    </div>
   );
 }
 
@@ -270,10 +314,88 @@ const inserterLabelStyle: React.CSSProperties = {
   boxShadow: "0 1px 3px rgba(47,109,209,.2)",
 };
 
-const breakBadgeStyle: React.CSSProperties = {
+const overallHeaderStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#14171d",
+  background: "#fff",
+  border: "1px solid var(--line)",
+  borderBottom: "none",
+  borderRadius: "6px 6px 0 0",
+  marginBottom: 0,
+  display: "flex",
+  alignItems: "center",
+};
+
+const pageHeaderStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 8,
-  margin: "10px 0",
-  padding: "4px 0",
+  margin: "0 0 12px",
+};
+
+const pageHeaderBadgeStyle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#2f6dd1",
+  background: "#eef5ff",
+  border: "1px solid #cfe0f1",
+  padding: "3px 12px",
+  borderRadius: 12,
+  letterSpacing: ".05em",
+};
+
+const pageDividerStyle: React.CSSProperties = {
+  margin: "20px 0",
+  padding: "0",
+  userSelect: "none",
+};
+
+const pageDividerEndStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  margin: 0,
+};
+
+const pageDividerStartStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  margin: 0,
+};
+
+const pageDividerEndLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#fff",
+  background: "#c0392b",
+  padding: "3px 10px",
+  borderRadius: 12,
+  letterSpacing: ".05em",
+  whiteSpace: "nowrap",
+};
+
+const pageDividerStartLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#fff",
+  background: "#1f7a42",
+  padding: "3px 10px",
+  borderRadius: 12,
+  letterSpacing: ".05em",
+  whiteSpace: "nowrap",
+};
+
+const pageGapStyle: React.CSSProperties = {
+  height: 28,
+  margin: "4px -16mm",
+  background:
+    "repeating-linear-gradient(45deg, #f5f5f7, #f5f5f7 6px, #e2e7ef 6px, #e2e7ef 12px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderTop: "1px solid #d8dde7",
+  borderBottom: "1px solid #d8dde7",
 };
