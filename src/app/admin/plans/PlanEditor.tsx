@@ -35,7 +35,67 @@ export function PlanEditor({ companies, plan }: Props) {
   const [missingPhrases, setMissingPhrases] = useState<string[]>([]);
   const [verifyMsg, setVerifyMsg] = useState<string>("");
 
+  // docx 取込（テンプレ本文を一括差し替え）用の状態
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string>("");
+
+  // PDF実物プレビュー用 iframe URL（blob URL）
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>("");
+  const [pdfPreviewing, setPdfPreviewing] = useState(false);
+
   const previewHtml = useMemo(() => renderTemplate(templateHtml, {}), [templateHtml]);
+
+  // docxを読み込んで本文HTMLに一括差し替え
+  async function importDocx(file: File) {
+    if (templateHtml.trim().length > 0) {
+      const ok = confirm("既存の本文HTMLを破棄して docx の内容で置き換えます。よろしいですか？");
+      if (!ok) return;
+    }
+    setImporting(true);
+    setImportMsg("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/admin/import-docx", { method: "POST", body: form });
+      const json = await res.json();
+      if (!res.ok) {
+        setImportMsg("❌ 取込失敗：" + json.error);
+        return;
+      }
+      setTemplateHtml(json.html);
+      const warn = (json.messages ?? []).filter((m: any) => m.type === "warning").length;
+      setImportMsg(
+        `✅ docxから本文を取り込みました。${warn > 0 ? `（${warn}件の変換警告あり）` : ""} ` +
+          `第○条 の見出し化と可変箇所の {{key}} 化は手で調整してください。`
+      );
+    } catch (e: any) {
+      setImportMsg("❌ 取込失敗：" + e?.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  // 現在の本文HTMLでPDFを生成して iframe にプレビュー
+  async function previewPdf() {
+    setPdfPreviewing(true);
+    try {
+      const res = await fetch("/api/admin/preview-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_html: templateHtml }),
+      });
+      if (!res.ok) {
+        alert("PDFプレビュー失敗：" + (await res.text()));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(url);
+    } finally {
+      setPdfPreviewing(false);
+    }
+  }
 
   async function uploadDocx(file: File) {
     setDocxUploading(true);
@@ -195,6 +255,22 @@ export function PlanEditor({ companies, plan }: Props) {
             <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 6px" }}>
               <code>{`{{key}}`}</code> 形式の可変箇所以外は<b>すべて原本ママ</b>。日付は <code>{`{{date:contract_date}}`}</code>。
             </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, padding: "8px 10px", background: "#eef5ff", borderRadius: 6, border: "1px solid #cfe0f1" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#2a4a6b" }}>📄 docxから本文を取込：</span>
+              <input
+                type="file"
+                accept=".docx"
+                onChange={(e) => e.target.files?.[0] && importDocx(e.target.files[0])}
+                disabled={importing}
+                style={{ fontSize: 12 }}
+              />
+              {importing && <span style={{ fontSize: 12 }}>変換中…</span>}
+            </div>
+            {importMsg && (
+              <p style={{ fontSize: 12, margin: "0 0 8px", padding: "6px 10px", background: importMsg.startsWith("✅") ? "#e3f3e8" : "#fdecea", borderRadius: 6 }}>
+                {importMsg}
+              </p>
+            )}
             <textarea
               style={{ ...input, height: 380, fontFamily: "monospace", fontSize: 12 }}
               value={templateHtml}
@@ -238,8 +314,35 @@ export function PlanEditor({ companies, plan }: Props) {
         </div>
 
         <div>
-          <Section title="プレビュー">
-            <div className="contract-page" style={{ transform: "scale(.78)", transformOrigin: "top center" }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          <Section title="プレビュー（赤い点線＝A4の改ページ位置）">
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <button onClick={previewPdf} disabled={pdfPreviewing || !templateHtml} style={{ ...btn, padding: "6px 14px", fontSize: 12 }}>
+                {pdfPreviewing ? "生成中…" : "📄 PDFで実物プレビュー"}
+              </button>
+              {pdfPreviewUrl && (
+                <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--accent)", alignSelf: "center" }}>
+                  別タブで開く →
+                </a>
+              )}
+            </div>
+            {pdfPreviewUrl && (
+              <iframe
+                src={pdfPreviewUrl}
+                style={{ width: "100%", height: 600, border: "1px solid var(--line)", borderRadius: 6, marginBottom: 12, background: "#eee" }}
+                title="PDFプレビュー"
+              />
+            )}
+            <div style={a4WrapperStyle}>
+              <div
+                className="contract-page"
+                style={a4PageStyle}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </div>
+            <p style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 6, lineHeight: 1.5 }}>
+              ↑ 赤い点線が <b>A4の改ページ境界</b>。点線を文字がまたぐと、その位置でページが割れます。
+              境界の直前で <code>{`<div class="page-break"></div>`}</code> を入れると、強制的に次のページから始まります。
+            </p>
           </Section>
         </div>
       </div>
@@ -266,3 +369,27 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const input: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 7, fontSize: 13.5, fontFamily: "inherit", background: "#fff" };
 const btn: React.CSSProperties = { padding: "10px 22px", background: "var(--accent)", color: "#fff", borderRadius: 7, border: "none", fontWeight: 700, cursor: "pointer", fontSize: 14 };
+// A4プレビュー：210mm幅で表示し、297mm刻みで赤い点線を引いて改ページ境界を可視化。
+// スクロールは .article-page 自体に縦に流す。CSSのrepeating-linear-gradient で
+// 「ほぼ透明 → 短い赤 → 透明」を繰り返すことで点線を描画。
+const a4WrapperStyle: React.CSSProperties = {
+  width: "210mm",
+  maxWidth: "100%",
+  margin: "0 auto",
+  background: "#fff",
+  border: "1px solid var(--line)",
+  borderRadius: 4,
+  overflow: "hidden",
+  boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+  transform: "scale(.72)",
+  transformOrigin: "top center",
+};
+const a4PageStyle: React.CSSProperties = {
+  width: "210mm",
+  // 297mm（A4の縦）刻みで、上から下に向かって薄い赤の境界線を引く。
+  // repeating-linear-gradient で「ほぼ全部透明、最後の1mmだけ赤」を 297mm 周期で繰り返す。
+  // 注：PDF生成時の .contract-page padding は 14mm 16mm。プレビューでは 20mm 18mm
+  // (globals.css) なので位置は数mm差がある。厳密には「PDFで実物プレビュー」で確認。
+  backgroundImage:
+    "repeating-linear-gradient(to bottom, transparent 0, transparent calc(297mm - 1px), #ff5050 calc(297mm - 1px), #ff5050 297mm)",
+};
