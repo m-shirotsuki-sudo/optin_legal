@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Company, Plan } from "@/types/contract";
 import { renderTemplate } from "@/lib/render";
+import { RichTemplateEditor } from "@/components/admin/RichTemplateEditor";
 
 interface Props {
   companies: Company[];
@@ -42,6 +43,19 @@ export function PlanEditor({ companies, plan }: Props) {
   // PDF実物プレビュー用 iframe URL（blob URL）
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>("");
   const [pdfPreviewing, setPdfPreviewing] = useState(false);
+
+  // 編集モード：visual=ビジュアル編集、html=生HTML編集（上級者用）
+  const [editMode, setEditMode] = useState<"visual" | "html">("visual");
+
+  // 可変フィールド一覧を解析（ビジュアルエディタのチップ表示・挿入メニュー用）
+  const parsedVariableFields = useMemo(() => {
+    try {
+      const v = JSON.parse(variableFieldsJson);
+      return Array.isArray(v) ? v : [];
+    } catch {
+      return [];
+    }
+  }, [variableFieldsJson]);
 
   const previewHtml = useMemo(() => renderTemplate(templateHtml, {}), [templateHtml]);
 
@@ -271,11 +285,51 @@ export function PlanEditor({ companies, plan }: Props) {
                 {importMsg}
               </p>
             )}
-            <textarea
-              style={{ ...input, height: 380, fontFamily: "monospace", fontSize: 12 }}
-              value={templateHtml}
-              onChange={(e) => setTemplateHtml(e.target.value)}
-            />
+            <div style={{ display: "flex", gap: 6, marginBottom: 6, fontSize: 11 }}>
+              <button
+                type="button"
+                onClick={() => setEditMode("visual")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 4,
+                  border: "1px solid #d8dde7",
+                  background: editMode === "visual" ? "#2f6dd1" : "#fff",
+                  color: editMode === "visual" ? "#fff" : "#14171d",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                ✏️ ビジュアル編集
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditMode("html")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 4,
+                  border: "1px solid #d8dde7",
+                  background: editMode === "html" ? "#2f6dd1" : "#fff",
+                  color: editMode === "html" ? "#fff" : "#14171d",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                {`</> HTML直接編集`}
+              </button>
+            </div>
+            {editMode === "visual" ? (
+              <RichTemplateEditor
+                value={templateHtml}
+                onChange={setTemplateHtml}
+                variableFields={parsedVariableFields}
+              />
+            ) : (
+              <textarea
+                style={{ ...input, height: 380, fontFamily: "monospace", fontSize: 12 }}
+                value={templateHtml}
+                onChange={(e) => setTemplateHtml(e.target.value)}
+              />
+            )}
             <details style={{ marginTop: 8 }}>
               <summary style={{ fontSize: 12, cursor: "pointer", color: "var(--accent)" }}>
                 改ページ・文字切れを調整したい時（クリックで展開）
